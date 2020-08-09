@@ -1,0 +1,51 @@
+version: "3.7"
+services:
+  airflow:
+    image: airflow:1.10.10
+    container_name: airflow-container
+    hostname: airflow
+    ports:
+      - 8080:8080
+      - 4040:4040
+    volumes:
+       - //c/big-data/docker/airflow/dags:/root/airflow/dags
+       - //c/big-data/docker/airflow/jars:/root/airflow/jars
+       - //c/big-data/docker/airflow/scripts:/root/airflow/scripts
+       - //c/big-data/docker/airflow/outputs:/spark-outputs
+    networks: 
+      airflow-network:
+        ipv4_address: 10.5.0.2
+        
+  spark-master:
+    image: actionml/spark:2.3.3
+    command: master
+    ports:
+      - 8081:8080
+    volumes:
+       - //c/big-data/docker/airflow/outputs:/spark-outputs
+    networks:
+      airflow-network:
+        ipv4_address: 10.5.0.3 
+
+  spark-worker:
+    image: actionml/spark:2.3.3
+    command: worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    ports:
+      - 8082:8081
+    volumes:
+       - //c/big-data/docker/airflow/outputs:/spark-outputs
+    environment:
+      - SPARK_WORKER_MEMORY=1g
+    networks: 
+      airflow-network:
+        ipv4_address: 10.5.0.4
+      
+networks:
+  airflow-network:
+    driver: bridge
+    ipam:
+     driver: default
+     config:
+       - subnet: 10.5.0.0/16
